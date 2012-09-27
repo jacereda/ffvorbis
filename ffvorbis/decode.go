@@ -6,10 +6,9 @@
 // Package ffvorbis provides a wrapper around the vorbis codec in ffmpeg.
 package ffvorbis
 
-// #cgo LDFLAGS: -lavcodec -lavutil
+// #cgo LDFLAGS: -lavcodec
 /*
 #include "libavcodec/avcodec.h"
-#include "libavutil/samplefmt.h"
 extern AVCodec ff_vorbis_decoder;
 */
 import "C"
@@ -54,19 +53,14 @@ func NewDecoder(data []byte) *Decoder {
 	return &d
 }
 
-func aligned(x uintptr) uintptr {
-	return (x + 255) & 0xffffffffffffff00
-}
-
 func (d *Decoder) Decode(data []byte, timecode time.Duration) *Samples {
 	var pkt C.AVPacket
 	var fr C.AVFrame
 	var got C.int
 	C.avcodec_get_frame_defaults(&fr)
 	C.av_init_packet(&pkt)
-	dl := len(data)
 	pkt.data = (*C.uint8_t)(&data[0])
-	pkt.size = C.int(dl)
+	pkt.size = C.int(len(data))
 	dec := C.avcodec_decode_audio4(d.cc, &fr, &got, &pkt)
 	if dec < 0 {
 		log.Println("Unable to decode 1")
