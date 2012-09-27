@@ -20,15 +20,28 @@ import (
 	"unsafe"
 )
 
+type Format uint
+
+const (
+	Int16 = iota
+	Float32
+)
+
+type Samples struct {
+	Data      []byte
+	Timecode  time.Duration
+	Channels  uint
+	Frequency uint
+	Format    Format
+}
+
 func init() {
-	C.av_log_set_level(48)
 	C.avcodec_register(&C.ff_vorbis_decoder)
-	
 }
 
 type Decoder struct {
-	c    *C.AVCodec
-	cc   *C.AVCodecContext
+	c  *C.AVCodec
+	cc *C.AVCodecContext
 }
 
 func NewDecoder(data []byte) *Decoder {
@@ -42,7 +55,7 @@ func NewDecoder(data []byte) *Decoder {
 }
 
 func aligned(x uintptr) uintptr {
-	return (x+255)&0xffffffffffffff00
+	return (x + 255) & 0xffffffffffffff00
 }
 
 func (d *Decoder) Decode(data []byte, timecode time.Duration) *Samples {
@@ -54,7 +67,7 @@ func (d *Decoder) Decode(data []byte, timecode time.Duration) *Samples {
 	dl := len(data)
 	pkt.data = (*C.uint8_t)(&data[0])
 	pkt.size = C.int(dl)
-	dec := C.avcodec_decode_audio4(d.cc, &fr, &got, &pkt) 
+	dec := C.avcodec_decode_audio4(d.cc, &fr, &got, &pkt)
 	if dec < 0 {
 		log.Println("Unable to decode 1")
 		return nil
@@ -65,33 +78,24 @@ func (d *Decoder) Decode(data []byte, timecode time.Duration) *Samples {
 	if got == 0 {
 		return nil
 	}
-	sz := int(d.cc.channels * fr.nb_samples) * (map[int32]int{
-		C.AV_SAMPLE_FMT_S16: 2, 
-		C.AV_SAMPLE_FMT_FLT: 4,
-	}[d.cc.sample_fmt])
+	var afmt Format
+	var bps int
+	switch d.cc.sample_fmt {
+	case C.AV_SAMPLE_FMT_S16:
+		bps = 2
+		afmt = Int16
+	case C.AV_SAMPLE_FMT_FLT:
+		bps = 4
+		afmt = Float32
+	default:
+		log.Panic("Unsupported format")
+	}
+	sz := bps * int(d.cc.channels*fr.nb_samples)
 	buf := make([]byte, sz)
 	copy(buf, ((*[192000]byte)(unsafe.Pointer(fr.data[0])))[0:sz])
 	if pkt.data != nil {
 		C.av_free_packet(&pkt)
 	}
-	afmt := map[int32]Format{
-		C.AV_SAMPLE_FMT_S16: Int16, 
-		C.AV_SAMPLE_FMT_FLT: Float32,
-	}
-	return &Samples{buf, timecode, uint(d.cc.channels), 
-			uint(d.cc.sample_rate), afmt[d.cc.sample_fmt]}
-}
-
-type Format uint
-const (
-	Int16 = iota
-	Float32
-)
-
-type Samples struct {
-	Data []byte
-	Timecode time.Duration
-	Channels uint
-	Frequency uint
-	Format Format
+	return &Samples{buf, timecode, uint(d.cc.channels),
+		uint(d.cc.sample_rate), afmt}
 }
