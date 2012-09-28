@@ -10,6 +10,14 @@ package ffvorbis
 /*
 #include "libavcodec/avcodec.h"
 extern AVCodec ff_vorbis_decoder;
+
+static void convertS16(void * vd, const void * vs, int n) {
+ const int16_t * s = (const int16_t*)vs;
+ float * d = (float*)vd;
+ float scale = 1 / 65536.0; // 32768.0f;
+ int i;
+ for (i = 0; i < n; i++) d[i] = scale * s[i];
+}
 */
 import "C"
 
@@ -19,19 +27,11 @@ import (
 	"unsafe"
 )
 
-type Format uint
-
-const (
-	Int16 = iota
-	Float32
-)
-
 type Samples struct {
-	Data      []byte
+	Data      []float32
 	Timecode  time.Duration
 	Channels  uint
 	Frequency uint
-	Format    Format
 }
 
 func init() {
@@ -63,7 +63,7 @@ func (d *Decoder) Decode(data []byte, timecode time.Duration) *Samples {
 	pkt.size = C.int(len(data))
 	dec := C.avcodec_decode_audio4(d.cc, &fr, &got, &pkt)
 	if dec < 0 {
-		log.Println("Unable to decode 1")
+		log.Println("Unable to decode")
 		return nil
 	}
 	if dec != pkt.size {
@@ -72,24 +72,20 @@ func (d *Decoder) Decode(data []byte, timecode time.Duration) *Samples {
 	if got == 0 {
 		return nil
 	}
-	var afmt Format
-	var bps int
+	nvals := d.cc.channels * fr.nb_samples
+	buf := make([]float32, nvals)
+	dst := unsafe.Pointer(&buf[0])
+	src := unsafe.Pointer(fr.data[0])
 	switch d.cc.sample_fmt {
-	case C.AV_SAMPLE_FMT_S16:
-		bps = 2
-		afmt = Int16
 	case C.AV_SAMPLE_FMT_FLT:
-		bps = 4
-		afmt = Float32
+		C.memcpy(dst, src, C.size_t(nvals * 4))
+	case C.AV_SAMPLE_FMT_S16:
+		C.convertS16(dst, src, nvals)
 	default:
-		log.Panic("Unsupported format")
+		log.Panic("Unsupported format")		
 	}
-	sz := bps * int(d.cc.channels*fr.nb_samples)
-	buf := make([]byte, sz)
-	copy(buf, ((*[192000]byte)(unsafe.Pointer(fr.data[0])))[0:sz])
 	if pkt.data != nil {
 		C.av_free_packet(&pkt)
 	}
-	return &Samples{buf, timecode, uint(d.cc.channels),
-		uint(d.cc.sample_rate), afmt}
+	return &Samples{buf, timecode, uint(d.cc.channels), uint(d.cc.sample_rate)}
 }
