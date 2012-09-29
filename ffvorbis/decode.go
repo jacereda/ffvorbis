@@ -9,6 +9,7 @@ package ffvorbis
 // #cgo LDFLAGS: -lavcodec
 /*
 #include "libavcodec/avcodec.h"
+#include <string.h>
 extern AVCodec ff_vorbis_decoder;
 
 static void convertS16(void * vd, const void * vs, int n) {
