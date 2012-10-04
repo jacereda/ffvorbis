@@ -24,16 +24,8 @@ import "C"
 
 import (
 	"log"
-	"time"
 	"unsafe"
 )
-
-type Samples struct {
-	Data      []float32
-	Timecode  time.Duration
-	Channels  uint
-	Frequency uint
-}
 
 func init() {
 	C.avcodec_register(&C.ff_vorbis_decoder)
@@ -54,7 +46,7 @@ func NewDecoder(data []byte) *Decoder {
 	return &d
 }
 
-func (d *Decoder) Decode(data []byte, timecode time.Duration) *Samples {
+func (d *Decoder) Decode(data []byte) []float32 {
 	var pkt C.AVPacket
 	var fr C.AVFrame
 	var got C.int
@@ -79,14 +71,14 @@ func (d *Decoder) Decode(data []byte, timecode time.Duration) *Samples {
 	src := unsafe.Pointer(fr.data[0])
 	switch d.cc.sample_fmt {
 	case C.AV_SAMPLE_FMT_FLT:
-		C.memcpy(dst, src, C.size_t(nvals * 4))
+		C.memcpy(dst, src, C.size_t(nvals*4))
 	case C.AV_SAMPLE_FMT_S16:
 		C.convertS16(dst, src, nvals)
 	default:
-		log.Panic("Unsupported format")		
+		log.Panic("Unsupported format")
 	}
 	if pkt.data != nil {
 		C.av_free_packet(&pkt)
 	}
-	return &Samples{buf, timecode, uint(d.cc.channels), uint(d.cc.sample_rate)}
+	return buf
 }
