@@ -36,12 +36,16 @@ type Decoder struct {
 	cc *C.AVCodecContext
 }
 
-func NewDecoder(data []byte) *Decoder {
+func NewDecoder(data []byte, channels, rate int) *Decoder {
 	var d Decoder
 	d.c = C.avcodec_find_decoder(C.AV_CODEC_ID_VORBIS)
 	d.cc = C.avcodec_alloc_context3(d.c)
+	d.cc.codec_type = C.AVMEDIA_TYPE_AUDIO
+	d.cc.sample_rate = C.int(rate)
+	d.cc.channels = C.int(channels)
 	d.cc.extradata = (*C.uint8_t)(&data[0])
 	d.cc.extradata_size = C.int(len(data))
+	d.cc.channels = 2
 	C.avcodec_open2(d.cc, d.c, nil)
 	return &d
 }
