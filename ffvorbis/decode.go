@@ -9,6 +9,9 @@ package ffvorbis
 // #cgo LDFLAGS: -lavcodec
 /*
 #include "libavcodec/avcodec.h"
+#if LIBAVCODEC_VERSION_MAJOR == 53
+#define AV_CODEC_ID_VORBIS CODEC_ID_VORBIS
+#endif
 #include <string.h>
 extern AVCodec ff_vorbis_decoder;
 
