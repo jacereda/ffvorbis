@@ -13,7 +13,6 @@ package ffvorbis
 #define AV_CODEC_ID_VORBIS CODEC_ID_VORBIS
 #endif
 #include <string.h>
-extern AVCodec ff_vorbis_decoder;
 
 static void convertS16(void * vd, const void * vs, int n) {
  const int16_t * s = (const int16_t*)vs;
