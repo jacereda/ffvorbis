@@ -31,7 +31,7 @@ import (
 )
 
 func init() {
-	C.avcodec_register(&C.ff_vorbis_decoder)
+	C.avcodec_register_all()
 }
 
 type Decoder struct {
