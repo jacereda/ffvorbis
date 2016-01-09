@@ -6,7 +6,7 @@
 // Package ffvorbis provides a wrapper around the vorbis codec in ffmpeg.
 package ffvorbis
 
-// #cgo LDFLAGS: -lavcodec -lavutil
+// #cgo pkg-config: libavcodec libavutil
 /*
 #include "libavcodec/avcodec.h"
 #include "libavutil/frame.h"
@@ -56,7 +56,6 @@ func NewDecoder(data []byte, channels, rate int) *Decoder {
 	d.cc.codec_type = C.AVMEDIA_TYPE_AUDIO
 	d.cc.sample_rate = C.int(rate)
 	d.cc.channels = C.int(channels)
-	log.Println("channels ", d.cc.channels, "rate ", d.cc.sample_rate)
 	d.cc.extradata = (*C.uint8_t)(&data[0])
 	d.cc.extradata_size = C.int(len(data))
 	C.avcodec_open2(d.cc, d.c, nil)
