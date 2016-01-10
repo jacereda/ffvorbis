@@ -63,16 +63,18 @@ func NewDecoder(data []byte, channels, rate int) *Decoder {
 }
 
 func (d *Decoder) Decode(data []byte) []float32 {
-	var pkt C.AVPacket
+	var pkt *C.AVPacket
 	var fr *C.AVFrame
 	var got C.int
 	fr = C.av_frame_alloc()
 	defer C.av_frame_free(&fr)
-	C.av_init_packet(&pkt)
-	defer C.av_packet_unref(&pkt)
+	pkt = (*C.AVPacket)(C.malloc(C.size_t(unsafe.Sizeof(C.AVPacket{}))))
+	defer C.free(unsafe.Pointer(pkt))
+	C.av_init_packet(pkt)
+	defer C.av_packet_unref(pkt)
 	pkt.data = (*C.uint8_t)(&data[0])
 	pkt.size = C.int(len(data))
-	dec := C.avcodec_decode_audio4(d.cc, fr, &got, &pkt)
+	dec := C.avcodec_decode_audio4(d.cc, fr, &got, pkt)
 	if dec < 0 {
 		log.Println("Unable to decode")
 		return nil
